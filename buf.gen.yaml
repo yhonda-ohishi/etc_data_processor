@@ -1,0 +1,27 @@
+version: v1
+plugins:
+  # Generate Go protobuf code
+  - plugin: go
+    out: .
+    opt:
+      - paths=source_relative
+
+  # Generate Go gRPC code
+  - plugin: go-grpc
+    out: .
+    opt:
+      - paths=source_relative
+
+  # Generate gRPC-Gateway code
+  - plugin: grpc-gateway
+    out: .
+    opt:
+      - paths=source_relative
+      - generate_unbound_methods=true
+
+  # Generate OpenAPI v2 (Swagger) documentation
+  - plugin: openapiv2
+    out: src/api
+    opt:
+      - allow_merge=true
+      - merge_file_name=data_processor

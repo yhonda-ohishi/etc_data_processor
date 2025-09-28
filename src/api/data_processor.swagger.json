@@ -1,0 +1,330 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "src/proto/data_processor.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "DataProcessorService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "DataProcessorService_HealthCheck",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1HealthCheckResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "DataProcessorService"
+        ]
+      }
+    },
+    "/v1/process/data": {
+      "post": {
+        "operationId": "DataProcessorService_ProcessCSVData",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ProcessCSVDataResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ProcessCSVDataRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DataProcessorService"
+        ]
+      }
+    },
+    "/v1/process/file": {
+      "post": {
+        "operationId": "DataProcessorService_ProcessCSVFile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ProcessCSVFileResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ProcessCSVFileRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DataProcessorService"
+        ]
+      }
+    },
+    "/v1/validate": {
+      "post": {
+        "operationId": "DataProcessorService_ValidateCSVData",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ValidateCSVDataResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ValidateCSVDataRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DataProcessorService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1HealthCheckResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "int64"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1ProcessCSVDataRequest": {
+      "type": "object",
+      "properties": {
+        "csvData": {
+          "type": "string"
+        },
+        "accountId": {
+          "type": "string"
+        },
+        "skipDuplicates": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1ProcessCSVDataResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "stats": {
+          "$ref": "#/definitions/v1ProcessingStats"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1ProcessCSVFileRequest": {
+      "type": "object",
+      "properties": {
+        "csvFilePath": {
+          "type": "string"
+        },
+        "accountId": {
+          "type": "string"
+        },
+        "skipDuplicates": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1ProcessCSVFileResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "stats": {
+          "$ref": "#/definitions/v1ProcessingStats"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1ProcessingStats": {
+      "type": "object",
+      "properties": {
+        "totalRecords": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "savedRecords": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "skippedRecords": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "errorRecords": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1ValidateCSVDataRequest": {
+      "type": "object",
+      "properties": {
+        "csvData": {
+          "type": "string"
+        },
+        "accountId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ValidateCSVDataResponse": {
+      "type": "object",
+      "properties": {
+        "isValid": {
+          "type": "boolean"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ValidationError"
+          }
+        },
+        "duplicateCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalRecords": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1ValidationError": {
+      "type": "object",
+      "properties": {
+        "lineNumber": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "field": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "recordData": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

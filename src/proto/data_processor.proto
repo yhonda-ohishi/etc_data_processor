@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package etcdataprocessor.v1;
+
+option go_package = "github.com/yhonda-ohishi/etc_data_processor/src/api/pb;pb";
+
+import "google/api/annotations.proto";
+
+service DataProcessorService {
+    rpc ProcessCSVFile(ProcessCSVFileRequest) returns (ProcessCSVFileResponse) {
+        option (google.api.http) = {
+            post: "/v1/process/file"
+            body: "*"
+        };
+    }
+
+    rpc ProcessCSVData(ProcessCSVDataRequest) returns (ProcessCSVDataResponse) {
+        option (google.api.http) = {
+            post: "/v1/process/data"
+            body: "*"
+        };
+    }
+
+    rpc ValidateCSVData(ValidateCSVDataRequest) returns (ValidateCSVDataResponse) {
+        option (google.api.http) = {
+            post: "/v1/validate"
+            body: "*"
+        };
+    }
+
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {
+        option (google.api.http) = {
+            get: "/v1/health"
+        };
+    }
+}
+
+message ProcessCSVFileRequest {
+    string csv_file_path = 1;
+    string account_id = 2;
+    bool skip_duplicates = 3;
+}
+
+message ProcessCSVFileResponse {
+    bool success = 1;
+    string message = 2;
+    ProcessingStats stats = 3;
+    repeated string errors = 4;
+}
+
+message ProcessCSVDataRequest {
+    string csv_data = 1;
+    string account_id = 2;
+    bool skip_duplicates = 3;
+}
+
+message ProcessCSVDataResponse {
+    bool success = 1;
+    string message = 2;
+    ProcessingStats stats = 3;
+    repeated string errors = 4;
+}
+
+message ValidateCSVDataRequest {
+    string csv_data = 1;
+    string account_id = 2;
+}
+
+message ValidateCSVDataResponse {
+    bool is_valid = 1;
+    repeated ValidationError errors = 2;
+    int32 duplicate_count = 3;
+    int32 total_records = 4;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+    string status = 1;
+    string version = 2;
+    int64 timestamp = 3;
+    map<string, string> details = 4;
+}
+
+message ProcessingStats {
+    int32 total_records = 1;
+    int32 saved_records = 2;
+    int32 skipped_records = 3;
+    int32 error_records = 4;
+}
+
+message ValidationError {
+    int32 line_number = 1;
+    string field = 2;
+    string message = 3;
+    string record_data = 4;
+}

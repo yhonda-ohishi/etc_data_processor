@@ -1,0 +1,17 @@
+# ETC Data Processor Configuration
+
+# Server port
+port: 50051
+
+# Database service address (gRPC endpoint)
+# Example: localhost:50052
+db_service_addr: ""
+
+# Maximum batch size for processing records
+max_batch_size: 100
+
+# Enable data validation
+validate_data: true
+
+# Log level (debug, info, warn, error)
+log_level: info

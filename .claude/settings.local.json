@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(buf dep update:*)",
+      "Bash(buf generate:*)",
+      "Bash(go test:*)",
+      "Bash(go tool cover:*)",
+      "Bash(awk:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

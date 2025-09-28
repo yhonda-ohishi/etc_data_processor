@@ -1,0 +1,2484 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>handler: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/yhonda-ohishi/etc_data_processor/src/pkg/handler/service.go (100.0%)</option>
+				
+				<option value="file1">github.com/yhonda-ohishi/etc_data_processor/src/pkg/handler/validator.go (100.0%)</option>
+				
+				<option value="file2">github.com/yhonda-ohishi/etc_data_processor/src/pkg/parser/csv_parser.go (100.0%)</option>
+				
+				<option value="file3">github.com/yhonda-ohishi/etc_data_processor/src/pkg/parser/etc_csv_parser.go (100.0%)</option>
+				
+				<option value="file4">github.com/yhonda-ohishi/etc_data_processor/src/proto/data_processor.pb.go (7.2%)</option>
+				
+				<option value="file5">github.com/yhonda-ohishi/etc_data_processor/src/proto/data_processor.pb.gw.go (0.0%)</option>
+				
+				<option value="file6">github.com/yhonda-ohishi/etc_data_processor/src/proto/data_processor_grpc.pb.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package handler
+
+import (
+        "context"
+        "fmt"
+        "io"
+        "strings"
+        "time"
+
+        pb "github.com/yhonda-ohishi/etc_data_processor/src/proto"
+        "github.com/yhonda-ohishi/etc_data_processor/src/pkg/parser"
+        "google.golang.org/grpc/codes"
+        "google.golang.org/grpc/status"
+)
+
+const (
+        version = "1.0.0"
+)
+
+// DBClient interface for database operations
+type DBClient interface {
+        SaveETCData(data interface{}) error
+}
+
+// Parser interface for CSV parsing operations
+type Parser interface {
+        ParseFile(filePath string) ([]parser.ActualETCRecord, error)
+        Parse(reader io.Reader) ([]parser.ActualETCRecord, error)
+        ValidateRecord(record parser.ActualETCRecord) error
+        ConvertToSimpleRecord(record parser.ActualETCRecord) (parser.ETCRecord, error)
+}
+
+// DataProcessorService implements the gRPC service
+type DataProcessorService struct {
+        pb.UnimplementedDataProcessorServiceServer
+        dbClient  DBClient
+        parser    Parser
+        validator Validator
+}
+
+// NewDataProcessorService creates a new service instance
+func NewDataProcessorService(dbClient DBClient) *DataProcessorService <span class="cov8" title="1">{
+        return &amp;DataProcessorService{
+                dbClient:  dbClient,
+                parser:    parser.NewETCCSVParser(),
+                validator: NewDefaultValidator(),
+        }
+}</span>
+
+// NewDataProcessorServiceWithValidator creates a service with custom validator
+func NewDataProcessorServiceWithValidator(dbClient DBClient, validator Validator) *DataProcessorService <span class="cov8" title="1">{
+        return &amp;DataProcessorService{
+                dbClient:  dbClient,
+                parser:    parser.NewETCCSVParser(),
+                validator: validator,
+        }
+}</span>
+
+// NewDataProcessorServiceWithDependencies creates a service with custom dependencies
+func NewDataProcessorServiceWithDependencies(dbClient DBClient, csvParser Parser, validator Validator) *DataProcessorService <span class="cov8" title="1">{
+        return &amp;DataProcessorService{
+                dbClient:  dbClient,
+                parser:    csvParser,
+                validator: validator,
+        }
+}</span>
+
+// ProcessCSVFile processes a CSV file from filesystem
+func (s *DataProcessorService) ProcessCSVFile(ctx context.Context, req *pb.ProcessCSVFileRequest) (*pb.ProcessCSVFileResponse, error) <span class="cov8" title="1">{
+        // Validate request using validator
+        if err := ValidateProcessCSVFileRequest(req, s.validator); err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        // Parse CSV file
+        <span class="cov8" title="1">records, err := s.parser.ParseFile(req.CsvFilePath)
+        if err != nil </span><span class="cov8" title="1">{
+                return &amp;pb.ProcessCSVFileResponse{
+                        Success: false,
+                        Message: fmt.Sprintf("Failed to parse CSV file: %v", err),
+                        Stats: &amp;pb.ProcessingStats{
+                                TotalRecords: 0,
+                        },
+                        Errors: []string{err.Error()},
+                }, nil
+        }</span>
+
+        // Process records
+        <span class="cov8" title="1">stats, errors := s.processRecords(ctx, records, req.AccountId, req.SkipDuplicates)
+
+        return &amp;pb.ProcessCSVFileResponse{
+                Success: stats.SavedRecords &gt; 0,
+                Message: fmt.Sprintf("Processed %d records from file", stats.TotalRecords),
+                Stats:   stats,
+                Errors:  errors,
+        }, nil</span>
+}
+
+// ProcessCSVData processes CSV data directly
+func (s *DataProcessorService) ProcessCSVData(ctx context.Context, req *pb.ProcessCSVDataRequest) (*pb.ProcessCSVDataResponse, error) <span class="cov8" title="1">{
+        // Validate request using validator
+        if err := ValidateProcessCSVDataRequest(req, s.validator); err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        // Parse CSV data
+        <span class="cov8" title="1">reader := strings.NewReader(req.CsvData)
+        records, err := s.parser.Parse(reader)
+        if err != nil </span><span class="cov8" title="1">{
+                // All parsing errors should be treated as invalid format for API
+                return nil, status.Errorf(codes.InvalidArgument, "invalid CSV format: %v", err)
+        }</span>
+
+        // Process records
+        <span class="cov8" title="1">stats, errors := s.processRecords(ctx, records, req.AccountId, req.SkipDuplicates)
+
+        return &amp;pb.ProcessCSVDataResponse{
+                Success: stats.SavedRecords &gt; 0,
+                Message: fmt.Sprintf("Processed %d records", stats.TotalRecords),
+                Stats:   stats,
+                Errors:  errors,
+        }, nil</span>
+}
+
+// ValidateCSVData validates CSV data without saving
+func (s *DataProcessorService) ValidateCSVData(ctx context.Context, req *pb.ValidateCSVDataRequest) (*pb.ValidateCSVDataResponse, error) <span class="cov8" title="1">{
+        // Validate request using validator
+        if err := ValidateValidateCSVDataRequest(req, s.validator); err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        // Parse CSV data
+        <span class="cov8" title="1">reader := strings.NewReader(req.CsvData)
+        records, err := s.parser.Parse(reader)
+
+        var validationErrors []*pb.ValidationError
+
+        if err != nil </span><span class="cov8" title="1">{
+                // Parse error means invalid CSV
+                return &amp;pb.ValidateCSVDataResponse{
+                        IsValid: false,
+                        Errors: []*pb.ValidationError{
+                                {
+                                        LineNumber: 0,
+                                        Field:      "csv",
+                                        Message:    err.Error(),
+                                },
+                        },
+                        TotalRecords: 0,
+                }, nil
+        }</span>
+
+        // Validate each record
+        <span class="cov8" title="1">duplicateMap := make(map[string]int)
+        duplicateCount := int32(0)
+
+        for i, record := range records </span><span class="cov8" title="1">{
+                // Create a unique key for duplicate detection
+                key := fmt.Sprintf("%s_%s_%s_%s_%d",
+                        record.EntryDate, record.EntryTime,
+                        record.ExitDate, record.ExitTime,
+                        record.ETCAmount)
+
+                if _, exists := duplicateMap[key]; exists </span><span class="cov8" title="1">{
+                        duplicateCount++
+                        duplicateMap[key]++
+                }</span> else<span class="cov8" title="1"> {
+                        duplicateMap[key] = 1
+                }</span>
+
+                // Validate record
+                <span class="cov8" title="1">if err := s.parser.ValidateRecord(record); err != nil </span><span class="cov8" title="1">{
+                        validationErrors = append(validationErrors, &amp;pb.ValidationError{
+                                LineNumber:  int32(i + 2), // +2 for header and 1-based indexing
+                                Field:       "",
+                                Message:     err.Error(),
+                                RecordData:  fmt.Sprintf("%v", record),
+                        })
+                }</span>
+        }
+
+        <span class="cov8" title="1">return &amp;pb.ValidateCSVDataResponse{
+                IsValid:        len(validationErrors) == 0,
+                Errors:         validationErrors,
+                DuplicateCount: duplicateCount,
+                TotalRecords:   int32(len(records)),
+        }, nil</span>
+}
+
+// HealthCheck returns the service health status
+func (s *DataProcessorService) HealthCheck(ctx context.Context, req *pb.HealthCheckRequest) (*pb.HealthCheckResponse, error) <span class="cov8" title="1">{
+        return &amp;pb.HealthCheckResponse{
+                Status:    "healthy",
+                Version:   version,
+                Timestamp: time.Now().Unix(),
+                Details: map[string]string{
+                        "service": "etc_data_processor",
+                        "uptime":  "running",
+                },
+        }, nil
+}</span>
+
+// processRecords processes parsed records and saves to database
+func (s *DataProcessorService) processRecords(ctx context.Context, records []parser.ActualETCRecord, accountID string, skipDuplicates bool) (*pb.ProcessingStats, []string) <span class="cov8" title="1">{
+        stats := &amp;pb.ProcessingStats{
+                TotalRecords:   int32(len(records)),
+                SavedRecords:   0,
+                SkippedRecords: 0,
+                ErrorRecords:   0,
+        }
+
+        var errors []string
+        processedKeys := make(map[string]bool)
+
+        for i, record := range records </span><span class="cov8" title="1">{
+                // Check context cancellation
+                if ctx.Err() != nil </span><span class="cov8" title="1">{
+                        errors = append(errors, fmt.Sprintf("Processing cancelled at record %d", i))
+                        stats.ErrorRecords = int32(len(records) - i)
+                        break</span>
+                }
+
+                // Create unique key for duplicate detection
+                <span class="cov8" title="1">key := fmt.Sprintf("%s_%s_%s_%s_%d_%s",
+                        record.EntryDate, record.EntryTime,
+                        record.ExitDate, record.ExitTime,
+                        record.ETCAmount, record.CardNumber)
+
+                // Skip duplicates if requested
+                if skipDuplicates &amp;&amp; processedKeys[key] </span><span class="cov8" title="1">{
+                        stats.SkippedRecords++
+                        continue</span>
+                }
+
+                // Convert to simple format for saving
+                <span class="cov8" title="1">simpleRecord, err := s.parser.ConvertToSimpleRecord(record)
+                if err != nil </span><span class="cov8" title="1">{
+                        errors = append(errors, fmt.Sprintf("Record %d: conversion failed: %v", i+1, err))
+                        stats.ErrorRecords++
+                        continue</span>
+                }
+
+                // Add account ID
+                <span class="cov8" title="1">dataToSave := map[string]interface{}{
+                        "account_id":   accountID,
+                        "date":        simpleRecord.Date,
+                        "entry_ic":    simpleRecord.EntryIC,
+                        "exit_ic":     simpleRecord.ExitIC,
+                        "route":       simpleRecord.Route,
+                        "vehicle_type": simpleRecord.VehicleType,
+                        "amount":      simpleRecord.Amount,
+                        "card_number": simpleRecord.CardNumber,
+                }
+
+                // Save to database
+                if s.dbClient != nil </span><span class="cov8" title="1">{
+                        if err := s.dbClient.SaveETCData(dataToSave); err != nil </span><span class="cov8" title="1">{
+                                errors = append(errors, fmt.Sprintf("Record %d: save failed: %v", i+1, err))
+                                stats.ErrorRecords++
+                                continue</span>
+                        }
+                }
+
+                <span class="cov8" title="1">processedKeys[key] = true
+                stats.SavedRecords++</span>
+        }
+
+        <span class="cov8" title="1">return stats, errors</span>
+}</pre>
+		
+		<pre class="file" id="file1" style="display: none">package handler
+
+import (
+        "fmt"
+        "os"
+
+        "google.golang.org/grpc/codes"
+        "google.golang.org/grpc/status"
+)
+
+// Validator interface for request validation
+type Validator interface {
+        ValidateCSVFilePath(path string) error
+        ValidateAccountID(accountID string) error
+        ValidateCSVData(data string) error
+        CheckFileExists(path string) error
+}
+
+// DefaultValidator is the default implementation of Validator
+type DefaultValidator struct{}
+
+// NewDefaultValidator creates a new default validator
+func NewDefaultValidator() *DefaultValidator <span class="cov8" title="1">{
+        return &amp;DefaultValidator{}
+}</span>
+
+// ValidateCSVFilePath validates CSV file path
+func (v *DefaultValidator) ValidateCSVFilePath(path string) error <span class="cov8" title="1">{
+        if path == "" </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "csv_file_path is required")
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// ValidateAccountID validates account ID
+func (v *DefaultValidator) ValidateAccountID(accountID string) error <span class="cov8" title="1">{
+        if accountID == "" </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "account_id is required")
+        }</span>
+        // Additional validation rules can be added here
+        <span class="cov8" title="1">if len(accountID) &lt; 3 </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "account_id must be at least 3 characters")
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// ValidateCSVData validates CSV data
+func (v *DefaultValidator) ValidateCSVData(data string) error <span class="cov8" title="1">{
+        if data == "" </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "csv_data is required")
+        }</span>
+        <span class="cov8" title="1">if len(data) &lt; 10 </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "csv_data is too short")
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// CheckFileExists checks if a file exists
+func (v *DefaultValidator) CheckFileExists(path string) error <span class="cov8" title="1">{
+        if _, err := os.Stat(path); os.IsNotExist(err) </span><span class="cov8" title="1">{
+                return status.Errorf(codes.NotFound, "file not found: %s", path)
+        }</span> else<span class="cov8" title="1"> if err != nil </span><span class="cov8" title="1">{
+                return status.Errorf(codes.Internal, "failed to check file: %v", err)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// ValidateProcessCSVFileRequest validates ProcessCSVFile request
+func ValidateProcessCSVFileRequest(req interface{}, v Validator) error <span class="cov8" title="1">{
+        if req == nil </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "request is nil")
+        }</span>
+
+        // Type assertion with interface to allow different request types
+        <span class="cov8" title="1">type FileRequest interface {
+                GetCsvFilePath() string
+                GetAccountId() string
+        }
+
+        fileReq, ok := req.(FileRequest)
+        if !ok </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "invalid request type")
+        }</span>
+
+        <span class="cov8" title="1">if err := v.ValidateCSVFilePath(fileReq.GetCsvFilePath()); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">if err := v.ValidateAccountID(fileReq.GetAccountId()); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">if err := v.CheckFileExists(fileReq.GetCsvFilePath()); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// ValidateProcessCSVDataRequest validates ProcessCSVData request
+func ValidateProcessCSVDataRequest(req interface{}, v Validator) error <span class="cov8" title="1">{
+        if req == nil </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "request is nil")
+        }</span>
+
+        <span class="cov8" title="1">type DataRequest interface {
+                GetCsvData() string
+                GetAccountId() string
+        }
+
+        dataReq, ok := req.(DataRequest)
+        if !ok </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "invalid request type")
+        }</span>
+
+        <span class="cov8" title="1">if err := v.ValidateCSVData(dataReq.GetCsvData()); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">if err := v.ValidateAccountID(dataReq.GetAccountId()); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// ValidateValidateCSVDataRequest validates ValidateCSVData request
+func ValidateValidateCSVDataRequest(req interface{}, v Validator) error <span class="cov8" title="1">{
+        if req == nil </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "request is nil")
+        }</span>
+
+        <span class="cov8" title="1">type ValidateRequest interface {
+                GetCsvData() string
+        }
+
+        validateReq, ok := req.(ValidateRequest)
+        if !ok </span><span class="cov8" title="1">{
+                return status.Error(codes.InvalidArgument, "invalid request type")
+        }</span>
+
+        <span class="cov8" title="1">if err := v.ValidateCSVData(validateReq.GetCsvData()); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// CreateDuplicateKey creates a unique key for duplicate detection
+func CreateDuplicateKey(entryDate, entryTime, exitDate, exitTime string, amount int, cardNumber string) string <span class="cov8" title="1">{
+        return fmt.Sprintf("%s_%s_%s_%s_%d_%s",
+                entryDate, entryTime, exitDate, exitTime, amount, cardNumber)
+}</pre>
+		
+		<pre class="file" id="file2" style="display: none">package parser
+
+import (
+        "encoding/csv"
+        "fmt"
+        "io"
+        "os"
+        "strconv"
+        "time"
+)
+
+// ETCRecord represents a single ETC toll record
+type ETCRecord struct {
+        Date        time.Time
+        EntryIC     string
+        ExitIC      string
+        Route       string
+        VehicleType string
+        Amount      int
+        CardNumber  string
+}
+
+// CSVParser handles CSV file parsing
+type CSVParser struct{}
+
+// NewCSVParser creates a new CSV parser instance
+func NewCSVParser() *CSVParser <span class="cov8" title="1">{
+        return &amp;CSVParser{}
+}</span>
+
+// Parse parses CSV data from a reader
+func (p *CSVParser) Parse(reader io.Reader) ([]ETCRecord, error) <span class="cov8" title="1">{
+        if reader == nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("reader cannot be nil")
+        }</span>
+
+        <span class="cov8" title="1">csvReader := csv.NewReader(reader)
+        csvReader.FieldsPerRecord = 7
+
+        // Read all records
+        records, err := csvReader.ReadAll()
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to read CSV: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if len(records) == 0 </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("CSV file is empty")
+        }</span>
+
+        // Skip header if it exists
+        <span class="cov8" title="1">startIndex := 0
+        if len(records) &gt; 0 &amp;&amp; records[0][0] == "日付" </span><span class="cov8" title="1">{
+                startIndex = 1
+        }</span>
+
+        <span class="cov8" title="1">if len(records) &lt;= startIndex </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("no data records found")
+        }</span>
+
+        <span class="cov8" title="1">return p.ProcessRecords(records, startIndex)</span>
+}
+
+// ProcessRecords processes CSV records starting from the given index
+func (p *CSVParser) ProcessRecords(records [][]string, startIndex int) ([]ETCRecord, error) <span class="cov8" title="1">{
+        var etcRecords []ETCRecord
+        for i := startIndex; i &lt; len(records); i++ </span><span class="cov8" title="1">{
+                record := records[i]
+
+                // Parse date
+                date, err := time.Parse("2006-01-02", record[0])
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, fmt.Errorf("invalid date format at line %d: %w", i+1, err)
+                }</span>
+
+                // Parse amount
+                <span class="cov8" title="1">amount, err := strconv.Atoi(record[5])
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, fmt.Errorf("invalid amount at line %d: %w", i+1, err)
+                }</span>
+
+                <span class="cov8" title="1">etcRecord := ETCRecord{
+                        Date:        date,
+                        EntryIC:     record[1],
+                        ExitIC:      record[2],
+                        Route:       record[3],
+                        VehicleType: record[4],
+                        Amount:      amount,
+                        CardNumber:  record[6],
+                }
+
+                // Validate the record
+                if err := p.ValidateRecord(etcRecord); err != nil </span><span class="cov8" title="1">{
+                        return nil, fmt.Errorf("validation error at line %d: %w", i+1, err)
+                }</span>
+
+                <span class="cov8" title="1">etcRecords = append(etcRecords, etcRecord)</span>
+        }
+
+        <span class="cov8" title="1">return etcRecords, nil</span>
+}
+
+// ParseFile parses a CSV file from the filesystem
+func (p *CSVParser) ParseFile(filepath string) ([]ETCRecord, error) <span class="cov8" title="1">{
+        file, err := os.Open(filepath)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to open file: %w", err)
+        }</span>
+        <span class="cov8" title="1">defer file.Close()
+
+        return p.Parse(file)</span>
+}
+
+// ValidateRecord validates a single ETC record
+func (p *CSVParser) ValidateRecord(record ETCRecord) error <span class="cov8" title="1">{
+        // Check for empty required fields
+        if record.EntryIC == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("entry IC cannot be empty")
+        }</span>
+        <span class="cov8" title="1">if record.ExitIC == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("exit IC cannot be empty")
+        }</span>
+        <span class="cov8" title="1">if record.Route == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("route cannot be empty")
+        }</span>
+        <span class="cov8" title="1">if record.VehicleType == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("vehicle type cannot be empty")
+        }</span>
+        <span class="cov8" title="1">if record.CardNumber == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("card number cannot be empty")
+        }</span>
+
+        // Check amount is non-negative
+        <span class="cov8" title="1">if record.Amount &lt; 0 </span><span class="cov8" title="1">{
+                return fmt.Errorf("amount cannot be negative")
+        }</span>
+
+        // Check date is not in the future
+        <span class="cov8" title="1">if record.Date.After(time.Now()) </span><span class="cov8" title="1">{
+                return fmt.Errorf("date cannot be in the future")
+        }</span>
+
+        // Check date is reasonable (not too old)
+        <span class="cov8" title="1">minDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+        if record.Date.Before(minDate) </span><span class="cov8" title="1">{
+                return fmt.Errorf("date is too old (before year 2000)")
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// ParseStats contains parsing statistics
+type ParseStats struct {
+        TotalLines     int
+        ParsedRecords  int
+        SkippedRecords int
+        Errors         []string
+}</pre>
+		
+		<pre class="file" id="file3" style="display: none">package parser
+
+import (
+        "encoding/csv"
+        "fmt"
+        "io"
+        "os"
+        "strconv"
+        "strings"
+        "time"
+
+        "golang.org/x/text/encoding/japanese"
+        "golang.org/x/text/transform"
+)
+
+// ActualETCRecord represents the actual ETC record format from the CSV files
+type ActualETCRecord struct {
+        EntryDate     string // 利用年月日（入）
+        EntryTime     string // 時刻（入）
+        ExitDate      string // 利用年月日（出）
+        ExitTime      string // 時刻（出）
+        EntryIC       string // 利用IC（入）
+        ExitIC        string // 利用IC（出）
+        RouteInfo     string // 経路情報
+        ETCAmount     int    // ETC料金
+        NormalAmount  int    // 通行料金
+        DiscountApplied int  // 割引金額適用
+        Mileage       int    // マイレージ
+        VehicleClass  int    // 車種
+        VehicleNumber string // 車両番号
+        CardNumber    string // ETCカード番号
+        Notes         string // 備考
+}
+
+// ETCCSVParser handles actual ETC CSV file parsing
+type ETCCSVParser struct{}
+
+// NewETCCSVParser creates a new ETC CSV parser instance
+func NewETCCSVParser() *ETCCSVParser <span class="cov8" title="1">{
+        return &amp;ETCCSVParser{}
+}</span>
+
+// ParseFile parses an actual ETC CSV file with Shift-JIS encoding
+func (p *ETCCSVParser) ParseFile(filepath string) ([]ActualETCRecord, error) <span class="cov8" title="1">{
+        file, err := os.Open(filepath)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to open file: %w", err)
+        }</span>
+        <span class="cov8" title="1">defer file.Close()
+
+        // Convert from Shift-JIS to UTF-8
+        reader := transform.NewReader(file, japanese.ShiftJIS.NewDecoder())
+
+        return p.Parse(reader)</span>
+}
+
+// Parse parses CSV data from a reader
+func (p *ETCCSVParser) Parse(reader io.Reader) ([]ActualETCRecord, error) <span class="cov8" title="1">{
+        if reader == nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("reader cannot be nil")
+        }</span>
+
+        <span class="cov8" title="1">csvReader := csv.NewReader(reader)
+        csvReader.LazyQuotes = true
+        csvReader.FieldsPerRecord = -1 // Variable number of fields
+
+        // Read all records
+        records, err := csvReader.ReadAll()
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to read CSV: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if len(records) == 0 </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("CSV file is empty")
+        }</span>
+
+        // Parse header and create column mapping
+        <span class="cov8" title="1">headerMap := make(map[string]int)
+        startIndex := 0
+
+        // Check if first row is header
+        if len(records) &gt; 0 </span><span class="cov8" title="1">{
+                firstRow := records[0]
+                isHeader := false
+
+                // Check for known header patterns
+                for _, col := range firstRow </span><span class="cov8" title="1">{
+                        if strings.Contains(col, "利用年月日") || strings.Contains(col, "時刻") ||
+                           strings.Contains(col, "利用IC") || strings.Contains(col, "料金") ||
+                           strings.Contains(col, "カード番号") </span><span class="cov8" title="1">{
+                                isHeader = true
+                                break</span>
+                        }
+                }
+
+                <span class="cov8" title="1">if isHeader </span><span class="cov8" title="1">{
+                        // Build header mapping
+                        for idx, col := range firstRow </span><span class="cov8" title="1">{
+                                headerMap[col] = idx
+                        }</span>
+                        <span class="cov8" title="1">startIndex = 1</span>
+                }
+        }
+
+        <span class="cov8" title="1">if err := p.ValidateRecordsAvailable(records, startIndex); err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">var etcRecords []ActualETCRecord
+        for i := startIndex; i &lt; len(records); i++ </span><span class="cov8" title="1">{
+                record := records[i]
+
+                // Parse using header mapping if available, otherwise use positional
+                var etcRecord ActualETCRecord
+
+                if len(headerMap) &gt; 0 </span><span class="cov8" title="1">{
+                        // Use header-based mapping
+                        etcRecord = p.parseWithHeaders(record, headerMap)
+                }</span> else<span class="cov8" title="1"> {
+                        // Use positional mapping (backward compatibility)
+                        // Ensure we have minimum required fields
+                        if len(record) &lt; 13 </span><span class="cov8" title="1">{
+                                // Skip this record silently - insufficient fields
+                                continue</span>
+                        }
+
+                        <span class="cov8" title="1">etcRecord = ActualETCRecord{
+                                EntryDate:     record[0],
+                                EntryTime:     record[1],
+                                ExitDate:      record[2],
+                                ExitTime:      record[3],
+                                EntryIC:       record[4],
+                                ExitIC:        record[5],
+                                RouteInfo:     p.getFieldSafe(record, 6),
+                                Notes:         "",
+                        }
+
+                        // Parse ETC amount (field 7)
+                        if p.getFieldSafe(record, 7) != "" </span><span class="cov8" title="1">{
+                                amount, err := p.parseAmount(p.getFieldSafe(record, 7))
+                                if err != nil </span><span class="cov8" title="1">{
+                                        // Log warning but continue
+                                        etcRecord.ETCAmount = 0
+                                }</span> else<span class="cov8" title="1"> {
+                                        etcRecord.ETCAmount = amount
+                                }</span>
+                        }
+
+                        // Parse normal amount (field 8)
+                        <span class="cov8" title="1">if p.getFieldSafe(record, 8) != "" </span><span class="cov8" title="1">{
+                                amount, err := p.parseAmount(p.getFieldSafe(record, 8))
+                                if err != nil </span><span class="cov8" title="1">{
+                                        etcRecord.NormalAmount = 0
+                                }</span> else<span class="cov8" title="1"> {
+                                        etcRecord.NormalAmount = amount
+                                }</span>
+                        }
+
+                        // Parse discount amount (field 9)
+                        <span class="cov8" title="1">if p.getFieldSafe(record, 9) != "" </span><span class="cov8" title="1">{
+                                amount, err := p.parseAmount(p.getFieldSafe(record, 9))
+                                if err != nil </span><span class="cov8" title="1">{
+                                        etcRecord.DiscountApplied = 0
+                                }</span> else<span class="cov8" title="1"> {
+                                        etcRecord.DiscountApplied = amount
+                                }</span>
+                        }
+
+                        // Parse mileage (field 10)
+                        <span class="cov8" title="1">if p.getFieldSafe(record, 10) != "" </span><span class="cov8" title="1">{
+                                amount, err := p.parseAmount(p.getFieldSafe(record, 10))
+                                if err != nil </span><span class="cov8" title="1">{
+                                        etcRecord.Mileage = 0
+                                }</span> else<span class="cov8" title="1"> {
+                                        etcRecord.Mileage = amount
+                                }</span>
+                        }
+
+                        // Parse vehicle class (field 11)
+                        <span class="cov8" title="1">etcRecord.VehicleClass = p.ParseVehicleClass(record, 11)
+
+                        // Vehicle number (field 12)
+                        etcRecord.VehicleNumber = p.getFieldSafe(record, 12)
+
+                        // Card number (field 13)
+                        etcRecord.CardNumber = p.getFieldSafe(record, 13)
+
+                        // Notes (field 14)
+                        etcRecord.Notes = p.getFieldSafe(record, 14)</span>
+                }
+
+                // Validate the record
+                <span class="cov8" title="1">if err := p.ValidateRecord(etcRecord); err != nil </span>{<span class="cov8" title="1">
+                        // Skip validation errors silently - continue processing
+                        // Validation errors are expected for some records
+                }</span>
+
+                <span class="cov8" title="1">etcRecords = append(etcRecords, etcRecord)</span>
+        }
+
+        <span class="cov8" title="1">return etcRecords, nil</span>
+}
+
+// parseAmount parses amount strings that may have negative values
+func (p *ETCCSVParser) parseAmount(s string) (int, error) <span class="cov8" title="1">{
+        // Remove commas
+        s = strings.ReplaceAll(s, ",", "")
+
+        // Check for negative value (e.g., "-7430")
+        if strings.HasPrefix(s, "-") </span><span class="cov8" title="1">{
+                value, err := strconv.Atoi(s)
+                if err != nil </span><span class="cov8" title="1">{
+                        return 0, err
+                }</span>
+                <span class="cov8" title="1">return value, nil</span>
+        }
+
+        // Parse positive value
+        <span class="cov8" title="1">value, err := strconv.Atoi(s)
+        if err != nil </span><span class="cov8" title="1">{
+                return 0, err
+        }</span>
+        <span class="cov8" title="1">return value, nil</span>
+}
+
+// ValidateRecord validates a single ETC record
+func (p *ETCCSVParser) ValidateRecord(record ActualETCRecord) error <span class="cov8" title="1">{
+        // Basic validation - allow empty IC for some records
+        // Some records might have empty entry/exit IC for special cases
+
+        // Check card number is not empty
+        if record.CardNumber == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("card number cannot be empty")
+        }</span>
+
+        // Parse and validate dates
+        <span class="cov8" title="1">if record.EntryDate != "" </span><span class="cov8" title="1">{
+                _, err := p.parseDate(record.EntryDate)
+                if err != nil </span><span class="cov8" title="1">{
+                        return fmt.Errorf("invalid entry date: %w", err)
+                }</span>
+        }
+
+        <span class="cov8" title="1">if record.ExitDate != "" </span><span class="cov8" title="1">{
+                _, err := p.parseDate(record.ExitDate)
+                if err != nil </span><span class="cov8" title="1">{
+                        return fmt.Errorf("invalid exit date: %w", err)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// parseDate parses date in format "YY/MM/DD"
+func (p *ETCCSVParser) parseDate(dateStr string) (time.Time, error) <span class="cov8" title="1">{
+        // Handle date format like "25/09/01" (YY/MM/DD)
+        parts := strings.Split(dateStr, "/")
+        if len(parts) != 3 </span><span class="cov8" title="1">{
+                return time.Time{}, fmt.Errorf("invalid date format: %s", dateStr)
+        }</span>
+
+        <span class="cov8" title="1">year, err := strconv.Atoi(parts[0])
+        if err != nil </span><span class="cov8" title="1">{
+                return time.Time{}, err
+        }</span>
+        // Convert 2-digit year to 4-digit
+        <span class="cov8" title="1">if year &lt; 100 </span><span class="cov8" title="1">{
+                if year &lt; 50 </span><span class="cov8" title="1">{
+                        year += 2000
+                }</span> else<span class="cov8" title="1"> {
+                        year += 1900
+                }</span>
+        }
+
+        <span class="cov8" title="1">month, err := strconv.Atoi(parts[1])
+        if err != nil </span><span class="cov8" title="1">{
+                return time.Time{}, err
+        }</span>
+
+        <span class="cov8" title="1">day, err := strconv.Atoi(parts[2])
+        if err != nil </span><span class="cov8" title="1">{
+                return time.Time{}, err
+        }</span>
+
+        <span class="cov8" title="1">return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC), nil</span>
+}
+
+// ConvertToSimpleRecord converts ActualETCRecord to the simplified ETCRecord format
+func (p *ETCCSVParser) ConvertToSimpleRecord(actual ActualETCRecord) (ETCRecord, error) <span class="cov8" title="1">{
+        date, err := p.parseDate(actual.ExitDate)
+        if err != nil </span><span class="cov8" title="1">{
+                // Try entry date if exit date fails
+                date, err = p.parseDate(actual.EntryDate)
+                if err != nil </span><span class="cov8" title="1">{
+                        return ETCRecord{}, err
+                }</span>
+        }
+
+        // Determine the amount to use
+        <span class="cov8" title="1">amount := actual.ETCAmount
+        if amount == 0 </span><span class="cov8" title="1">{
+                amount = actual.NormalAmount
+        }</span>
+        // Handle negative amounts
+        <span class="cov8" title="1">if amount &lt; 0 </span><span class="cov8" title="1">{
+                amount = -amount
+        }</span>
+
+        <span class="cov8" title="1">return ETCRecord{
+                Date:        date,
+                EntryIC:     actual.EntryIC,
+                ExitIC:      actual.ExitIC,
+                Route:       actual.RouteInfo,
+                VehicleType: fmt.Sprintf("Class %d", actual.VehicleClass),
+                Amount:      amount,
+                CardNumber:  actual.CardNumber,
+        }, nil</span>
+}
+
+// getFieldSafe safely gets a field from a record slice
+func (p *ETCCSVParser) getFieldSafe(record []string, index int) string <span class="cov8" title="1">{
+        if index &lt; len(record) </span><span class="cov8" title="1">{
+                return record[index]
+        }</span>
+        <span class="cov8" title="1">return ""</span>
+}
+
+// parseWithHeaders parses a record using header mapping
+func (p *ETCCSVParser) parseWithHeaders(record []string, headerMap map[string]int) ActualETCRecord <span class="cov8" title="1">{
+        etcRecord := ActualETCRecord{}
+
+        // Map header names to fields - handle different formats
+        // Some files use （自）/（至） while others use （入）/（出）
+        etcRecord.EntryDate = p.getFieldByHeader(record, headerMap, "利用年月日（入）", "利用年月日(入)", "利用年月日（自）", "入口日付")
+        etcRecord.EntryTime = p.getFieldByHeader(record, headerMap, "時刻（入）", "時刻(入)", "時分（自）", "入口時刻")
+        etcRecord.ExitDate = p.getFieldByHeader(record, headerMap, "利用年月日（出）", "利用年月日(出)", "利用年月日（至）", "出口日付")
+        etcRecord.ExitTime = p.getFieldByHeader(record, headerMap, "時刻（出）", "時刻(出)", "時分（至）", "出口時刻")
+        etcRecord.EntryIC = p.getFieldByHeader(record, headerMap, "利用IC（入）", "利用IC(入)", "利用ＩＣ（自）", "入口IC", "入口")
+        etcRecord.ExitIC = p.getFieldByHeader(record, headerMap, "利用IC（出）", "利用IC(出)", "利用ＩＣ（至）", "出口IC", "出口")
+        etcRecord.RouteInfo = p.getFieldByHeader(record, headerMap, "経路情報", "路線", "経路")
+
+        // Parse amounts - handle different header formats
+        // 割引前料金 = Normal amount (before discount)
+        normalAmountStr := p.getFieldByHeader(record, headerMap, "割引前料金", "通行料金", "通常料金")
+        if normalAmountStr != "" </span><span class="cov8" title="1">{
+                amount, err := p.parseAmount(normalAmountStr)
+                if err == nil </span><span class="cov8" title="1">{
+                        etcRecord.NormalAmount = amount
+                }</span>
+        }
+
+        // ＥＴＣ割引額 = Discount amount (negative value)
+        <span class="cov8" title="1">discountStr := p.getFieldByHeader(record, headerMap, "ＥＴＣ割引額", "ETC割引額", "割引額")
+        if discountStr != "" </span><span class="cov8" title="1">{
+                amount, err := p.parseAmount(discountStr)
+                if err == nil </span><span class="cov8" title="1">{
+                        etcRecord.DiscountApplied = amount
+                }</span>
+        }
+
+        // 通行料金 = Actual charged amount
+        <span class="cov8" title="1">etcAmountStr := p.getFieldByHeader(record, headerMap, "通行料金", "ETC料金", "料金")
+        if etcAmountStr != "" </span><span class="cov8" title="1">{
+                amount, err := p.parseAmount(etcAmountStr)
+                if err == nil </span><span class="cov8" title="1">{
+                        etcRecord.ETCAmount = amount
+                }</span>
+        }
+
+        // 後納料金 = Post-payment amount (if exists)
+        <span class="cov8" title="1">postPaymentStr := p.getFieldByHeader(record, headerMap, "後納料金", "後払料金")
+        if postPaymentStr != "" </span><span class="cov8" title="1">{
+                amount, err := p.parseAmount(postPaymentStr)
+                if err == nil &amp;&amp; amount != 0 </span><span class="cov8" title="1">{
+                        // Use post-payment amount if available
+                        etcRecord.ETCAmount = amount
+                }</span>
+        }
+
+        // Parse vehicle info
+        <span class="cov8" title="1">vehicleClassStr := p.getFieldByHeader(record, headerMap, "車種", "車両区分", "車種区分")
+        if vehicleClassStr != "" </span><span class="cov8" title="1">{
+                class, err := strconv.Atoi(vehicleClassStr)
+                if err == nil </span><span class="cov8" title="1">{
+                        etcRecord.VehicleClass = class
+                }</span>
+        }
+
+        <span class="cov8" title="1">etcRecord.VehicleNumber = p.getFieldByHeader(record, headerMap, "車両番号", "ナンバー", "車番")
+        etcRecord.CardNumber = p.getFieldByHeader(record, headerMap, "ＥＴＣカード番号", "ETCカード番号", "カード番号", "カード")
+        etcRecord.Notes = p.getFieldByHeader(record, headerMap, "備考", "メモ", "注記")
+
+        return etcRecord</span>
+}
+
+// getFieldByHeader gets a field value using multiple possible header names
+func (p *ETCCSVParser) getFieldByHeader(record []string, headerMap map[string]int, headerNames ...string) string <span class="cov8" title="1">{
+        for _, headerName := range headerNames </span><span class="cov8" title="1">{
+                if idx, exists := headerMap[headerName]; exists </span><span class="cov8" title="1">{
+                        if idx &lt; len(record) </span><span class="cov8" title="1">{
+                                return record[idx]
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">return ""</span>
+}
+
+// ParseVehicleClass parses vehicle class from record field, returns 0 if parsing fails
+func (p *ETCCSVParser) ParseVehicleClass(record []string, fieldIndex int) int <span class="cov8" title="1">{
+        fieldValue := p.getFieldSafe(record, fieldIndex)
+        if fieldValue != "" </span><span class="cov8" title="1">{
+                class, err := strconv.Atoi(fieldValue)
+                if err != nil </span><span class="cov8" title="1">{
+                        return 0
+                }</span>
+                <span class="cov8" title="1">return class</span>
+        }
+        <span class="cov8" title="1">return 0</span>
+}
+
+// ValidateRecordsAvailable checks if there are data records available for processing
+func (p *ETCCSVParser) ValidateRecordsAvailable(records [][]string, startIndex int) error <span class="cov8" title="1">{
+        if len(records) &lt;= startIndex </span><span class="cov8" title="1">{
+                return fmt.Errorf("no data records found")
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Code generated by protoc-gen-go. DO NOT EDIT.
+// versions:
+//         protoc-gen-go v1.36.9
+//         protoc        (unknown)
+// source: src/proto/data_processor.proto
+
+package pb
+
+import (
+        _ "google.golang.org/genproto/googleapis/api/annotations"
+        protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+        protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+        reflect "reflect"
+        sync "sync"
+        unsafe "unsafe"
+)
+
+const (
+        // Verify that this generated code is sufficiently up-to-date.
+        _ = protoimpl.EnforceVersion(20 - protoimpl.MinVersion)
+        // Verify that runtime/protoimpl is sufficiently up-to-date.
+        _ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
+)
+
+type ProcessCSVFileRequest struct {
+        state          protoimpl.MessageState `protogen:"open.v1"`
+        CsvFilePath    string                 `protobuf:"bytes,1,opt,name=csv_file_path,json=csvFilePath,proto3" json:"csv_file_path,omitempty"`
+        AccountId      string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+        SkipDuplicates bool                   `protobuf:"varint,3,opt,name=skip_duplicates,json=skipDuplicates,proto3" json:"skip_duplicates,omitempty"`
+        unknownFields  protoimpl.UnknownFields
+        sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProcessCSVFileRequest) Reset() <span class="cov0" title="0">{
+        *x = ProcessCSVFileRequest{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[0]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *ProcessCSVFileRequest) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*ProcessCSVFileRequest) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *ProcessCSVFileRequest) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[0]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use ProcessCSVFileRequest.ProtoReflect.Descriptor instead.
+func (*ProcessCSVFileRequest) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{0}
+}</span>
+
+func (x *ProcessCSVFileRequest) GetCsvFilePath() string <span class="cov8" title="1">{
+        if x != nil </span><span class="cov8" title="1">{
+                return x.CsvFilePath
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ProcessCSVFileRequest) GetAccountId() string <span class="cov8" title="1">{
+        if x != nil </span><span class="cov8" title="1">{
+                return x.AccountId
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ProcessCSVFileRequest) GetSkipDuplicates() bool <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.SkipDuplicates
+        }</span>
+        <span class="cov0" title="0">return false</span>
+}
+
+type ProcessCSVFileResponse struct {
+        state         protoimpl.MessageState `protogen:"open.v1"`
+        Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+        Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+        Stats         *ProcessingStats       `protobuf:"bytes,3,opt,name=stats,proto3" json:"stats,omitempty"`
+        Errors        []string               `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+        unknownFields protoimpl.UnknownFields
+        sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessCSVFileResponse) Reset() <span class="cov0" title="0">{
+        *x = ProcessCSVFileResponse{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[1]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *ProcessCSVFileResponse) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*ProcessCSVFileResponse) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *ProcessCSVFileResponse) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[1]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use ProcessCSVFileResponse.ProtoReflect.Descriptor instead.
+func (*ProcessCSVFileResponse) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{1}
+}</span>
+
+func (x *ProcessCSVFileResponse) GetSuccess() bool <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Success
+        }</span>
+        <span class="cov0" title="0">return false</span>
+}
+
+func (x *ProcessCSVFileResponse) GetMessage() string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Message
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ProcessCSVFileResponse) GetStats() *ProcessingStats <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Stats
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (x *ProcessCSVFileResponse) GetErrors() []string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Errors
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+type ProcessCSVDataRequest struct {
+        state          protoimpl.MessageState `protogen:"open.v1"`
+        CsvData        string                 `protobuf:"bytes,1,opt,name=csv_data,json=csvData,proto3" json:"csv_data,omitempty"`
+        AccountId      string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+        SkipDuplicates bool                   `protobuf:"varint,3,opt,name=skip_duplicates,json=skipDuplicates,proto3" json:"skip_duplicates,omitempty"`
+        unknownFields  protoimpl.UnknownFields
+        sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProcessCSVDataRequest) Reset() <span class="cov0" title="0">{
+        *x = ProcessCSVDataRequest{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[2]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *ProcessCSVDataRequest) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*ProcessCSVDataRequest) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *ProcessCSVDataRequest) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[2]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use ProcessCSVDataRequest.ProtoReflect.Descriptor instead.
+func (*ProcessCSVDataRequest) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{2}
+}</span>
+
+func (x *ProcessCSVDataRequest) GetCsvData() string <span class="cov8" title="1">{
+        if x != nil </span><span class="cov8" title="1">{
+                return x.CsvData
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ProcessCSVDataRequest) GetAccountId() string <span class="cov8" title="1">{
+        if x != nil </span><span class="cov8" title="1">{
+                return x.AccountId
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ProcessCSVDataRequest) GetSkipDuplicates() bool <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.SkipDuplicates
+        }</span>
+        <span class="cov0" title="0">return false</span>
+}
+
+type ProcessCSVDataResponse struct {
+        state         protoimpl.MessageState `protogen:"open.v1"`
+        Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+        Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+        Stats         *ProcessingStats       `protobuf:"bytes,3,opt,name=stats,proto3" json:"stats,omitempty"`
+        Errors        []string               `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+        unknownFields protoimpl.UnknownFields
+        sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessCSVDataResponse) Reset() <span class="cov0" title="0">{
+        *x = ProcessCSVDataResponse{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[3]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *ProcessCSVDataResponse) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*ProcessCSVDataResponse) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *ProcessCSVDataResponse) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[3]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use ProcessCSVDataResponse.ProtoReflect.Descriptor instead.
+func (*ProcessCSVDataResponse) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{3}
+}</span>
+
+func (x *ProcessCSVDataResponse) GetSuccess() bool <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Success
+        }</span>
+        <span class="cov0" title="0">return false</span>
+}
+
+func (x *ProcessCSVDataResponse) GetMessage() string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Message
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ProcessCSVDataResponse) GetStats() *ProcessingStats <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Stats
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (x *ProcessCSVDataResponse) GetErrors() []string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Errors
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+type ValidateCSVDataRequest struct {
+        state         protoimpl.MessageState `protogen:"open.v1"`
+        CsvData       string                 `protobuf:"bytes,1,opt,name=csv_data,json=csvData,proto3" json:"csv_data,omitempty"`
+        AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+        unknownFields protoimpl.UnknownFields
+        sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateCSVDataRequest) Reset() <span class="cov0" title="0">{
+        *x = ValidateCSVDataRequest{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[4]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *ValidateCSVDataRequest) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*ValidateCSVDataRequest) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *ValidateCSVDataRequest) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[4]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use ValidateCSVDataRequest.ProtoReflect.Descriptor instead.
+func (*ValidateCSVDataRequest) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{4}
+}</span>
+
+func (x *ValidateCSVDataRequest) GetCsvData() string <span class="cov8" title="1">{
+        if x != nil </span><span class="cov8" title="1">{
+                return x.CsvData
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ValidateCSVDataRequest) GetAccountId() string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.AccountId
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+type ValidateCSVDataResponse struct {
+        state          protoimpl.MessageState `protogen:"open.v1"`
+        IsValid        bool                   `protobuf:"varint,1,opt,name=is_valid,json=isValid,proto3" json:"is_valid,omitempty"`
+        Errors         []*ValidationError     `protobuf:"bytes,2,rep,name=errors,proto3" json:"errors,omitempty"`
+        DuplicateCount int32                  `protobuf:"varint,3,opt,name=duplicate_count,json=duplicateCount,proto3" json:"duplicate_count,omitempty"`
+        TotalRecords   int32                  `protobuf:"varint,4,opt,name=total_records,json=totalRecords,proto3" json:"total_records,omitempty"`
+        unknownFields  protoimpl.UnknownFields
+        sizeCache      protoimpl.SizeCache
+}
+
+func (x *ValidateCSVDataResponse) Reset() <span class="cov0" title="0">{
+        *x = ValidateCSVDataResponse{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[5]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *ValidateCSVDataResponse) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*ValidateCSVDataResponse) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *ValidateCSVDataResponse) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[5]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use ValidateCSVDataResponse.ProtoReflect.Descriptor instead.
+func (*ValidateCSVDataResponse) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{5}
+}</span>
+
+func (x *ValidateCSVDataResponse) GetIsValid() bool <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.IsValid
+        }</span>
+        <span class="cov0" title="0">return false</span>
+}
+
+func (x *ValidateCSVDataResponse) GetErrors() []*ValidationError <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Errors
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (x *ValidateCSVDataResponse) GetDuplicateCount() int32 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.DuplicateCount
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+func (x *ValidateCSVDataResponse) GetTotalRecords() int32 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.TotalRecords
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+type HealthCheckRequest struct {
+        state         protoimpl.MessageState `protogen:"open.v1"`
+        unknownFields protoimpl.UnknownFields
+        sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthCheckRequest) Reset() <span class="cov0" title="0">{
+        *x = HealthCheckRequest{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[6]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *HealthCheckRequest) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*HealthCheckRequest) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[6]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use HealthCheckRequest.ProtoReflect.Descriptor instead.
+func (*HealthCheckRequest) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{6}
+}</span>
+
+type HealthCheckResponse struct {
+        state         protoimpl.MessageState `protogen:"open.v1"`
+        Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+        Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+        Timestamp     int64                  `protobuf:"varint,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+        Details       map[string]string      `protobuf:"bytes,4,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+        unknownFields protoimpl.UnknownFields
+        sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthCheckResponse) Reset() <span class="cov0" title="0">{
+        *x = HealthCheckResponse{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[7]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *HealthCheckResponse) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*HealthCheckResponse) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[7]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use HealthCheckResponse.ProtoReflect.Descriptor instead.
+func (*HealthCheckResponse) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{7}
+}</span>
+
+func (x *HealthCheckResponse) GetStatus() string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Status
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *HealthCheckResponse) GetVersion() string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Version
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *HealthCheckResponse) GetTimestamp() int64 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Timestamp
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+func (x *HealthCheckResponse) GetDetails() map[string]string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Details
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+type ProcessingStats struct {
+        state          protoimpl.MessageState `protogen:"open.v1"`
+        TotalRecords   int32                  `protobuf:"varint,1,opt,name=total_records,json=totalRecords,proto3" json:"total_records,omitempty"`
+        SavedRecords   int32                  `protobuf:"varint,2,opt,name=saved_records,json=savedRecords,proto3" json:"saved_records,omitempty"`
+        SkippedRecords int32                  `protobuf:"varint,3,opt,name=skipped_records,json=skippedRecords,proto3" json:"skipped_records,omitempty"`
+        ErrorRecords   int32                  `protobuf:"varint,4,opt,name=error_records,json=errorRecords,proto3" json:"error_records,omitempty"`
+        unknownFields  protoimpl.UnknownFields
+        sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProcessingStats) Reset() <span class="cov0" title="0">{
+        *x = ProcessingStats{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[8]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *ProcessingStats) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*ProcessingStats) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *ProcessingStats) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[8]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use ProcessingStats.ProtoReflect.Descriptor instead.
+func (*ProcessingStats) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{8}
+}</span>
+
+func (x *ProcessingStats) GetTotalRecords() int32 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.TotalRecords
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+func (x *ProcessingStats) GetSavedRecords() int32 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.SavedRecords
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+func (x *ProcessingStats) GetSkippedRecords() int32 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.SkippedRecords
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+func (x *ProcessingStats) GetErrorRecords() int32 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.ErrorRecords
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+type ValidationError struct {
+        state         protoimpl.MessageState `protogen:"open.v1"`
+        LineNumber    int32                  `protobuf:"varint,1,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
+        Field         string                 `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty"`
+        Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+        RecordData    string                 `protobuf:"bytes,4,opt,name=record_data,json=recordData,proto3" json:"record_data,omitempty"`
+        unknownFields protoimpl.UnknownFields
+        sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidationError) Reset() <span class="cov0" title="0">{
+        *x = ValidationError{}
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[9]
+        ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+        ms.StoreMessageInfo(mi)
+}</span>
+
+func (x *ValidationError) String() string <span class="cov0" title="0">{
+        return protoimpl.X.MessageStringOf(x)
+}</span>
+
+func (*ValidationError) ProtoMessage() {<span class="cov0" title="0">}</span>
+
+func (x *ValidationError) ProtoReflect() protoreflect.Message <span class="cov0" title="0">{
+        mi := &amp;file_src_proto_data_processor_proto_msgTypes[9]
+        if x != nil </span><span class="cov0" title="0">{
+                ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+                if ms.LoadMessageInfo() == nil </span><span class="cov0" title="0">{
+                        ms.StoreMessageInfo(mi)
+                }</span>
+                <span class="cov0" title="0">return ms</span>
+        }
+        <span class="cov0" title="0">return mi.MessageOf(x)</span>
+}
+
+// Deprecated: Use ValidationError.ProtoReflect.Descriptor instead.
+func (*ValidationError) Descriptor() ([]byte, []int) <span class="cov0" title="0">{
+        return file_src_proto_data_processor_proto_rawDescGZIP(), []int{9}
+}</span>
+
+func (x *ValidationError) GetLineNumber() int32 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.LineNumber
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+func (x *ValidationError) GetField() string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Field
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ValidationError) GetMessage() string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.Message
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+func (x *ValidationError) GetRecordData() string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.RecordData
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+var File_src_proto_data_processor_proto protoreflect.FileDescriptor
+
+const file_src_proto_data_processor_proto_rawDesc = "" +
+        "\n" +
+        "\x1esrc/proto/data_processor.proto\x12\x13etcdataprocessor.v1\x1a\x1cgoogle/api/annotations.proto\"\x83\x01\n" +
+        "\x15ProcessCSVFileRequest\x12\"\n" +
+        "\rcsv_file_path\x18\x01 \x01(\tR\vcsvFilePath\x12\x1d\n" +
+        "\n" +
+        "account_id\x18\x02 \x01(\tR\taccountId\x12'\n" +
+        "\x0fskip_duplicates\x18\x03 \x01(\bR\x0eskipDuplicates\"\xa0\x01\n" +
+        "\x16ProcessCSVFileResponse\x12\x18\n" +
+        "\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+        "\amessage\x18\x02 \x01(\tR\amessage\x12:\n" +
+        "\x05stats\x18\x03 \x01(\v2$.etcdataprocessor.v1.ProcessingStatsR\x05stats\x12\x16\n" +
+        "\x06errors\x18\x04 \x03(\tR\x06errors\"z\n" +
+        "\x15ProcessCSVDataRequest\x12\x19\n" +
+        "\bcsv_data\x18\x01 \x01(\tR\acsvData\x12\x1d\n" +
+        "\n" +
+        "account_id\x18\x02 \x01(\tR\taccountId\x12'\n" +
+        "\x0fskip_duplicates\x18\x03 \x01(\bR\x0eskipDuplicates\"\xa0\x01\n" +
+        "\x16ProcessCSVDataResponse\x12\x18\n" +
+        "\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+        "\amessage\x18\x02 \x01(\tR\amessage\x12:\n" +
+        "\x05stats\x18\x03 \x01(\v2$.etcdataprocessor.v1.ProcessingStatsR\x05stats\x12\x16\n" +
+        "\x06errors\x18\x04 \x03(\tR\x06errors\"R\n" +
+        "\x16ValidateCSVDataRequest\x12\x19\n" +
+        "\bcsv_data\x18\x01 \x01(\tR\acsvData\x12\x1d\n" +
+        "\n" +
+        "account_id\x18\x02 \x01(\tR\taccountId\"\xc0\x01\n" +
+        "\x17ValidateCSVDataResponse\x12\x19\n" +
+        "\bis_valid\x18\x01 \x01(\bR\aisValid\x12&lt;\n" +
+        "\x06errors\x18\x02 \x03(\v2$.etcdataprocessor.v1.ValidationErrorR\x06errors\x12'\n" +
+        "\x0fduplicate_count\x18\x03 \x01(\x05R\x0eduplicateCount\x12#\n" +
+        "\rtotal_records\x18\x04 \x01(\x05R\ftotalRecords\"\x14\n" +
+        "\x12HealthCheckRequest\"\xf2\x01\n" +
+        "\x13HealthCheckResponse\x12\x16\n" +
+        "\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
+        "\aversion\x18\x02 \x01(\tR\aversion\x12\x1c\n" +
+        "\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\x12O\n" +
+        "\adetails\x18\x04 \x03(\v25.etcdataprocessor.v1.HealthCheckResponse.DetailsEntryR\adetails\x1a:\n" +
+        "\fDetailsEntry\x12\x10\n" +
+        "\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+        "\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa9\x01\n" +
+        "\x0fProcessingStats\x12#\n" +
+        "\rtotal_records\x18\x01 \x01(\x05R\ftotalRecords\x12#\n" +
+        "\rsaved_records\x18\x02 \x01(\x05R\fsavedRecords\x12'\n" +
+        "\x0fskipped_records\x18\x03 \x01(\x05R\x0eskippedRecords\x12#\n" +
+        "\rerror_records\x18\x04 \x01(\x05R\ferrorRecords\"\x83\x01\n" +
+        "\x0fValidationError\x12\x1f\n" +
+        "\vline_number\x18\x01 \x01(\x05R\n" +
+        "lineNumber\x12\x14\n" +
+        "\x05field\x18\x02 \x01(\tR\x05field\x12\x18\n" +
+        "\amessage\x18\x03 \x01(\tR\amessage\x12\x1f\n" +
+        "\vrecord_data\x18\x04 \x01(\tR\n" +
+        "recordData2\xa6\x04\n" +
+        "\x14DataProcessorService\x12\x86\x01\n" +
+        "\x0eProcessCSVFile\x12*.etcdataprocessor.v1.ProcessCSVFileRequest\x1a+.etcdataprocessor.v1.ProcessCSVFileResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/v1/process/file\x12\x86\x01\n" +
+        "\x0eProcessCSVData\x12*.etcdataprocessor.v1.ProcessCSVDataRequest\x1a+.etcdataprocessor.v1.ProcessCSVDataResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/v1/process/data\x12\x85\x01\n" +
+        "\x0fValidateCSVData\x12+.etcdataprocessor.v1.ValidateCSVDataRequest\x1a,.etcdataprocessor.v1.ValidateCSVDataResponse\"\x17\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v1/validate\x12t\n" +
+        "\vHealthCheck\x12'.etcdataprocessor.v1.HealthCheckRequest\x1a(.etcdataprocessor.v1.HealthCheckResponse\"\x12\x82\xd3\xe4\x93\x02\f\x12\n" +
+        "/v1/healthB;Z9github.com/yhonda-ohishi/etc_data_processor/src/api/pb;pbb\x06proto3"
+
+var (
+        file_src_proto_data_processor_proto_rawDescOnce sync.Once
+        file_src_proto_data_processor_proto_rawDescData []byte
+)
+
+func file_src_proto_data_processor_proto_rawDescGZIP() []byte <span class="cov0" title="0">{
+        file_src_proto_data_processor_proto_rawDescOnce.Do(func() </span><span class="cov0" title="0">{
+                file_src_proto_data_processor_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_src_proto_data_processor_proto_rawDesc), len(file_src_proto_data_processor_proto_rawDesc)))
+        }</span>)
+        <span class="cov0" title="0">return file_src_proto_data_processor_proto_rawDescData</span>
+}
+
+var file_src_proto_data_processor_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_src_proto_data_processor_proto_goTypes = []any{
+        (*ProcessCSVFileRequest)(nil),   // 0: etcdataprocessor.v1.ProcessCSVFileRequest
+        (*ProcessCSVFileResponse)(nil),  // 1: etcdataprocessor.v1.ProcessCSVFileResponse
+        (*ProcessCSVDataRequest)(nil),   // 2: etcdataprocessor.v1.ProcessCSVDataRequest
+        (*ProcessCSVDataResponse)(nil),  // 3: etcdataprocessor.v1.ProcessCSVDataResponse
+        (*ValidateCSVDataRequest)(nil),  // 4: etcdataprocessor.v1.ValidateCSVDataRequest
+        (*ValidateCSVDataResponse)(nil), // 5: etcdataprocessor.v1.ValidateCSVDataResponse
+        (*HealthCheckRequest)(nil),      // 6: etcdataprocessor.v1.HealthCheckRequest
+        (*HealthCheckResponse)(nil),     // 7: etcdataprocessor.v1.HealthCheckResponse
+        (*ProcessingStats)(nil),         // 8: etcdataprocessor.v1.ProcessingStats
+        (*ValidationError)(nil),         // 9: etcdataprocessor.v1.ValidationError
+        nil,                             // 10: etcdataprocessor.v1.HealthCheckResponse.DetailsEntry
+}
+var file_src_proto_data_processor_proto_depIdxs = []int32{
+        8,  // 0: etcdataprocessor.v1.ProcessCSVFileResponse.stats:type_name -&gt; etcdataprocessor.v1.ProcessingStats
+        8,  // 1: etcdataprocessor.v1.ProcessCSVDataResponse.stats:type_name -&gt; etcdataprocessor.v1.ProcessingStats
+        9,  // 2: etcdataprocessor.v1.ValidateCSVDataResponse.errors:type_name -&gt; etcdataprocessor.v1.ValidationError
+        10, // 3: etcdataprocessor.v1.HealthCheckResponse.details:type_name -&gt; etcdataprocessor.v1.HealthCheckResponse.DetailsEntry
+        0,  // 4: etcdataprocessor.v1.DataProcessorService.ProcessCSVFile:input_type -&gt; etcdataprocessor.v1.ProcessCSVFileRequest
+        2,  // 5: etcdataprocessor.v1.DataProcessorService.ProcessCSVData:input_type -&gt; etcdataprocessor.v1.ProcessCSVDataRequest
+        4,  // 6: etcdataprocessor.v1.DataProcessorService.ValidateCSVData:input_type -&gt; etcdataprocessor.v1.ValidateCSVDataRequest
+        6,  // 7: etcdataprocessor.v1.DataProcessorService.HealthCheck:input_type -&gt; etcdataprocessor.v1.HealthCheckRequest
+        1,  // 8: etcdataprocessor.v1.DataProcessorService.ProcessCSVFile:output_type -&gt; etcdataprocessor.v1.ProcessCSVFileResponse
+        3,  // 9: etcdataprocessor.v1.DataProcessorService.ProcessCSVData:output_type -&gt; etcdataprocessor.v1.ProcessCSVDataResponse
+        5,  // 10: etcdataprocessor.v1.DataProcessorService.ValidateCSVData:output_type -&gt; etcdataprocessor.v1.ValidateCSVDataResponse
+        7,  // 11: etcdataprocessor.v1.DataProcessorService.HealthCheck:output_type -&gt; etcdataprocessor.v1.HealthCheckResponse
+        8,  // [8:12] is the sub-list for method output_type
+        4,  // [4:8] is the sub-list for method input_type
+        4,  // [4:4] is the sub-list for extension type_name
+        4,  // [4:4] is the sub-list for extension extendee
+        0,  // [0:4] is the sub-list for field type_name
+}
+
+func init() <span class="cov8" title="1">{ file_src_proto_data_processor_proto_init() }</span>
+func file_src_proto_data_processor_proto_init() <span class="cov8" title="1">{
+        if File_src_proto_data_processor_proto != nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov8" title="1">type x struct{}
+        out := protoimpl.TypeBuilder{
+                File: protoimpl.DescBuilder{
+                        GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+                        RawDescriptor: unsafe.Slice(unsafe.StringData(file_src_proto_data_processor_proto_rawDesc), len(file_src_proto_data_processor_proto_rawDesc)),
+                        NumEnums:      0,
+                        NumMessages:   11,
+                        NumExtensions: 0,
+                        NumServices:   1,
+                },
+                GoTypes:           file_src_proto_data_processor_proto_goTypes,
+                DependencyIndexes: file_src_proto_data_processor_proto_depIdxs,
+                MessageInfos:      file_src_proto_data_processor_proto_msgTypes,
+        }.Build()
+        File_src_proto_data_processor_proto = out.File
+        file_src_proto_data_processor_proto_goTypes = nil
+        file_src_proto_data_processor_proto_depIdxs = nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Code generated by protoc-gen-grpc-gateway. DO NOT EDIT.
+// source: src/proto/data_processor.proto
+
+/*
+Package pb is a reverse proxy.
+
+It translates gRPC into RESTful JSON APIs.
+*/
+package pb
+
+import (
+        "context"
+        "errors"
+        "io"
+        "net/http"
+
+        "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+        "github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
+        "google.golang.org/grpc"
+        "google.golang.org/grpc/codes"
+        "google.golang.org/grpc/grpclog"
+        "google.golang.org/grpc/metadata"
+        "google.golang.org/grpc/status"
+        "google.golang.org/protobuf/proto"
+)
+
+// Suppress "imported and not used" errors
+var (
+        _ codes.Code
+        _ io.Reader
+        _ status.Status
+        _ = errors.New
+        _ = runtime.String
+        _ = utilities.NewDoubleArray
+        _ = metadata.Join
+)
+
+func request_DataProcessorService_ProcessCSVFile_0(ctx context.Context, marshaler runtime.Marshaler, client DataProcessorServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) <span class="cov0" title="0">{
+        var (
+                protoReq ProcessCSVFileRequest
+                metadata runtime.ServerMetadata
+        )
+        if err := marshaler.NewDecoder(req.Body).Decode(&amp;protoReq); err != nil &amp;&amp; !errors.Is(err, io.EOF) </span><span class="cov0" title="0">{
+                return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+        }</span>
+        <span class="cov0" title="0">if req.Body != nil </span><span class="cov0" title="0">{
+                _, _ = io.Copy(io.Discard, req.Body)
+        }</span>
+        <span class="cov0" title="0">msg, err := client.ProcessCSVFile(ctx, &amp;protoReq, grpc.Header(&amp;metadata.HeaderMD), grpc.Trailer(&amp;metadata.TrailerMD))
+        return msg, metadata, err</span>
+}
+
+func local_request_DataProcessorService_ProcessCSVFile_0(ctx context.Context, marshaler runtime.Marshaler, server DataProcessorServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) <span class="cov0" title="0">{
+        var (
+                protoReq ProcessCSVFileRequest
+                metadata runtime.ServerMetadata
+        )
+        if err := marshaler.NewDecoder(req.Body).Decode(&amp;protoReq); err != nil &amp;&amp; !errors.Is(err, io.EOF) </span><span class="cov0" title="0">{
+                return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+        }</span>
+        <span class="cov0" title="0">msg, err := server.ProcessCSVFile(ctx, &amp;protoReq)
+        return msg, metadata, err</span>
+}
+
+func request_DataProcessorService_ProcessCSVData_0(ctx context.Context, marshaler runtime.Marshaler, client DataProcessorServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) <span class="cov0" title="0">{
+        var (
+                protoReq ProcessCSVDataRequest
+                metadata runtime.ServerMetadata
+        )
+        if err := marshaler.NewDecoder(req.Body).Decode(&amp;protoReq); err != nil &amp;&amp; !errors.Is(err, io.EOF) </span><span class="cov0" title="0">{
+                return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+        }</span>
+        <span class="cov0" title="0">if req.Body != nil </span><span class="cov0" title="0">{
+                _, _ = io.Copy(io.Discard, req.Body)
+        }</span>
+        <span class="cov0" title="0">msg, err := client.ProcessCSVData(ctx, &amp;protoReq, grpc.Header(&amp;metadata.HeaderMD), grpc.Trailer(&amp;metadata.TrailerMD))
+        return msg, metadata, err</span>
+}
+
+func local_request_DataProcessorService_ProcessCSVData_0(ctx context.Context, marshaler runtime.Marshaler, server DataProcessorServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) <span class="cov0" title="0">{
+        var (
+                protoReq ProcessCSVDataRequest
+                metadata runtime.ServerMetadata
+        )
+        if err := marshaler.NewDecoder(req.Body).Decode(&amp;protoReq); err != nil &amp;&amp; !errors.Is(err, io.EOF) </span><span class="cov0" title="0">{
+                return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+        }</span>
+        <span class="cov0" title="0">msg, err := server.ProcessCSVData(ctx, &amp;protoReq)
+        return msg, metadata, err</span>
+}
+
+func request_DataProcessorService_ValidateCSVData_0(ctx context.Context, marshaler runtime.Marshaler, client DataProcessorServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) <span class="cov0" title="0">{
+        var (
+                protoReq ValidateCSVDataRequest
+                metadata runtime.ServerMetadata
+        )
+        if err := marshaler.NewDecoder(req.Body).Decode(&amp;protoReq); err != nil &amp;&amp; !errors.Is(err, io.EOF) </span><span class="cov0" title="0">{
+                return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+        }</span>
+        <span class="cov0" title="0">if req.Body != nil </span><span class="cov0" title="0">{
+                _, _ = io.Copy(io.Discard, req.Body)
+        }</span>
+        <span class="cov0" title="0">msg, err := client.ValidateCSVData(ctx, &amp;protoReq, grpc.Header(&amp;metadata.HeaderMD), grpc.Trailer(&amp;metadata.TrailerMD))
+        return msg, metadata, err</span>
+}
+
+func local_request_DataProcessorService_ValidateCSVData_0(ctx context.Context, marshaler runtime.Marshaler, server DataProcessorServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) <span class="cov0" title="0">{
+        var (
+                protoReq ValidateCSVDataRequest
+                metadata runtime.ServerMetadata
+        )
+        if err := marshaler.NewDecoder(req.Body).Decode(&amp;protoReq); err != nil &amp;&amp; !errors.Is(err, io.EOF) </span><span class="cov0" title="0">{
+                return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+        }</span>
+        <span class="cov0" title="0">msg, err := server.ValidateCSVData(ctx, &amp;protoReq)
+        return msg, metadata, err</span>
+}
+
+func request_DataProcessorService_HealthCheck_0(ctx context.Context, marshaler runtime.Marshaler, client DataProcessorServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) <span class="cov0" title="0">{
+        var (
+                protoReq HealthCheckRequest
+                metadata runtime.ServerMetadata
+        )
+        if req.Body != nil </span><span class="cov0" title="0">{
+                _, _ = io.Copy(io.Discard, req.Body)
+        }</span>
+        <span class="cov0" title="0">msg, err := client.HealthCheck(ctx, &amp;protoReq, grpc.Header(&amp;metadata.HeaderMD), grpc.Trailer(&amp;metadata.TrailerMD))
+        return msg, metadata, err</span>
+}
+
+func local_request_DataProcessorService_HealthCheck_0(ctx context.Context, marshaler runtime.Marshaler, server DataProcessorServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) <span class="cov0" title="0">{
+        var (
+                protoReq HealthCheckRequest
+                metadata runtime.ServerMetadata
+        )
+        msg, err := server.HealthCheck(ctx, &amp;protoReq)
+        return msg, metadata, err
+}</span>
+
+// RegisterDataProcessorServiceHandlerServer registers the http handlers for service DataProcessorService to "mux".
+// UnaryRPC     :call DataProcessorServiceServer directly.
+// StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
+// Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterDataProcessorServiceHandlerFromEndpoint instead.
+// GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
+func RegisterDataProcessorServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server DataProcessorServiceServer) error <span class="cov0" title="0">{
+        mux.Handle(http.MethodPost, pattern_DataProcessorService_ProcessCSVFile_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) </span><span class="cov0" title="0">{
+                ctx, cancel := context.WithCancel(req.Context())
+                defer cancel()
+                var stream runtime.ServerTransportStream
+                ctx = grpc.NewContextWithServerTransportStream(ctx, &amp;stream)
+                inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+                annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/etcdataprocessor.v1.DataProcessorService/ProcessCSVFile", runtime.WithHTTPPathPattern("/v1/process/file"))
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">resp, md, err := local_request_DataProcessorService_ProcessCSVFile_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+                md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+                annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">forward_DataProcessorService_ProcessCSVFile_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)</span>
+        })
+        <span class="cov0" title="0">mux.Handle(http.MethodPost, pattern_DataProcessorService_ProcessCSVData_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) </span><span class="cov0" title="0">{
+                ctx, cancel := context.WithCancel(req.Context())
+                defer cancel()
+                var stream runtime.ServerTransportStream
+                ctx = grpc.NewContextWithServerTransportStream(ctx, &amp;stream)
+                inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+                annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/etcdataprocessor.v1.DataProcessorService/ProcessCSVData", runtime.WithHTTPPathPattern("/v1/process/data"))
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">resp, md, err := local_request_DataProcessorService_ProcessCSVData_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+                md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+                annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">forward_DataProcessorService_ProcessCSVData_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)</span>
+        })
+        <span class="cov0" title="0">mux.Handle(http.MethodPost, pattern_DataProcessorService_ValidateCSVData_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) </span><span class="cov0" title="0">{
+                ctx, cancel := context.WithCancel(req.Context())
+                defer cancel()
+                var stream runtime.ServerTransportStream
+                ctx = grpc.NewContextWithServerTransportStream(ctx, &amp;stream)
+                inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+                annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/etcdataprocessor.v1.DataProcessorService/ValidateCSVData", runtime.WithHTTPPathPattern("/v1/validate"))
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">resp, md, err := local_request_DataProcessorService_ValidateCSVData_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+                md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+                annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">forward_DataProcessorService_ValidateCSVData_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)</span>
+        })
+        <span class="cov0" title="0">mux.Handle(http.MethodGet, pattern_DataProcessorService_HealthCheck_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) </span><span class="cov0" title="0">{
+                ctx, cancel := context.WithCancel(req.Context())
+                defer cancel()
+                var stream runtime.ServerTransportStream
+                ctx = grpc.NewContextWithServerTransportStream(ctx, &amp;stream)
+                inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+                annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/etcdataprocessor.v1.DataProcessorService/HealthCheck", runtime.WithHTTPPathPattern("/v1/health"))
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">resp, md, err := local_request_DataProcessorService_HealthCheck_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+                md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+                annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">forward_DataProcessorService_HealthCheck_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)</span>
+        })
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// RegisterDataProcessorServiceHandlerFromEndpoint is same as RegisterDataProcessorServiceHandler but
+// automatically dials to "endpoint" and closes the connection when "ctx" gets done.
+func RegisterDataProcessorServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) <span class="cov0" title="0">{
+        conn, err := grpc.NewClient(endpoint, opts...)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">defer func() </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov0" title="0">{
+                        if cerr := conn.Close(); cerr != nil </span><span class="cov0" title="0">{
+                                grpclog.Errorf("Failed to close conn to %s: %v", endpoint, cerr)
+                        }</span>
+                        <span class="cov0" title="0">return</span>
+                }
+                <span class="cov0" title="0">go func() </span><span class="cov0" title="0">{
+                        &lt;-ctx.Done()
+                        if cerr := conn.Close(); cerr != nil </span><span class="cov0" title="0">{
+                                grpclog.Errorf("Failed to close conn to %s: %v", endpoint, cerr)
+                        }</span>
+                }()
+        }()
+        <span class="cov0" title="0">return RegisterDataProcessorServiceHandler(ctx, mux, conn)</span>
+}
+
+// RegisterDataProcessorServiceHandler registers the http handlers for service DataProcessorService to "mux".
+// The handlers forward requests to the grpc endpoint over "conn".
+func RegisterDataProcessorServiceHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error <span class="cov0" title="0">{
+        return RegisterDataProcessorServiceHandlerClient(ctx, mux, NewDataProcessorServiceClient(conn))
+}</span>
+
+// RegisterDataProcessorServiceHandlerClient registers the http handlers for service DataProcessorService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "DataProcessorServiceClient".
+// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "DataProcessorServiceClient"
+// doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
+// "DataProcessorServiceClient" to call the correct interceptors. This client ignores the HTTP middlewares.
+func RegisterDataProcessorServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client DataProcessorServiceClient) error <span class="cov0" title="0">{
+        mux.Handle(http.MethodPost, pattern_DataProcessorService_ProcessCSVFile_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) </span><span class="cov0" title="0">{
+                ctx, cancel := context.WithCancel(req.Context())
+                defer cancel()
+                inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+                annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/etcdataprocessor.v1.DataProcessorService/ProcessCSVFile", runtime.WithHTTPPathPattern("/v1/process/file"))
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">resp, md, err := request_DataProcessorService_ProcessCSVFile_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+                annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">forward_DataProcessorService_ProcessCSVFile_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)</span>
+        })
+        <span class="cov0" title="0">mux.Handle(http.MethodPost, pattern_DataProcessorService_ProcessCSVData_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) </span><span class="cov0" title="0">{
+                ctx, cancel := context.WithCancel(req.Context())
+                defer cancel()
+                inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+                annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/etcdataprocessor.v1.DataProcessorService/ProcessCSVData", runtime.WithHTTPPathPattern("/v1/process/data"))
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">resp, md, err := request_DataProcessorService_ProcessCSVData_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+                annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">forward_DataProcessorService_ProcessCSVData_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)</span>
+        })
+        <span class="cov0" title="0">mux.Handle(http.MethodPost, pattern_DataProcessorService_ValidateCSVData_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) </span><span class="cov0" title="0">{
+                ctx, cancel := context.WithCancel(req.Context())
+                defer cancel()
+                inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+                annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/etcdataprocessor.v1.DataProcessorService/ValidateCSVData", runtime.WithHTTPPathPattern("/v1/validate"))
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">resp, md, err := request_DataProcessorService_ValidateCSVData_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+                annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">forward_DataProcessorService_ValidateCSVData_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)</span>
+        })
+        <span class="cov0" title="0">mux.Handle(http.MethodGet, pattern_DataProcessorService_HealthCheck_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) </span><span class="cov0" title="0">{
+                ctx, cancel := context.WithCancel(req.Context())
+                defer cancel()
+                inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+                annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/etcdataprocessor.v1.DataProcessorService/HealthCheck", runtime.WithHTTPPathPattern("/v1/health"))
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">resp, md, err := request_DataProcessorService_HealthCheck_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+                annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+                if err != nil </span><span class="cov0" title="0">{
+                        runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+                        return
+                }</span>
+                <span class="cov0" title="0">forward_DataProcessorService_HealthCheck_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)</span>
+        })
+        <span class="cov0" title="0">return nil</span>
+}
+
+var (
+        pattern_DataProcessorService_ProcessCSVFile_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "process", "file"}, ""))
+        pattern_DataProcessorService_ProcessCSVData_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "process", "data"}, ""))
+        pattern_DataProcessorService_ValidateCSVData_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "validate"}, ""))
+        pattern_DataProcessorService_HealthCheck_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "health"}, ""))
+)
+
+var (
+        forward_DataProcessorService_ProcessCSVFile_0  = runtime.ForwardResponseMessage
+        forward_DataProcessorService_ProcessCSVData_0  = runtime.ForwardResponseMessage
+        forward_DataProcessorService_ValidateCSVData_0 = runtime.ForwardResponseMessage
+        forward_DataProcessorService_HealthCheck_0     = runtime.ForwardResponseMessage
+)
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
+// versions:
+// - protoc-gen-go-grpc v1.5.1
+// - protoc             (unknown)
+// source: src/proto/data_processor.proto
+
+package pb
+
+import (
+        context "context"
+        grpc "google.golang.org/grpc"
+        codes "google.golang.org/grpc/codes"
+        status "google.golang.org/grpc/status"
+)
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.64.0 or later.
+const _ = grpc.SupportPackageIsVersion9
+
+const (
+        DataProcessorService_ProcessCSVFile_FullMethodName  = "/etcdataprocessor.v1.DataProcessorService/ProcessCSVFile"
+        DataProcessorService_ProcessCSVData_FullMethodName  = "/etcdataprocessor.v1.DataProcessorService/ProcessCSVData"
+        DataProcessorService_ValidateCSVData_FullMethodName = "/etcdataprocessor.v1.DataProcessorService/ValidateCSVData"
+        DataProcessorService_HealthCheck_FullMethodName     = "/etcdataprocessor.v1.DataProcessorService/HealthCheck"
+)
+
+// DataProcessorServiceClient is the client API for DataProcessorService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type DataProcessorServiceClient interface {
+        ProcessCSVFile(ctx context.Context, in *ProcessCSVFileRequest, opts ...grpc.CallOption) (*ProcessCSVFileResponse, error)
+        ProcessCSVData(ctx context.Context, in *ProcessCSVDataRequest, opts ...grpc.CallOption) (*ProcessCSVDataResponse, error)
+        ValidateCSVData(ctx context.Context, in *ValidateCSVDataRequest, opts ...grpc.CallOption) (*ValidateCSVDataResponse, error)
+        HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error)
+}
+
+type dataProcessorServiceClient struct {
+        cc grpc.ClientConnInterface
+}
+
+func NewDataProcessorServiceClient(cc grpc.ClientConnInterface) DataProcessorServiceClient <span class="cov0" title="0">{
+        return &amp;dataProcessorServiceClient{cc}
+}</span>
+
+func (c *dataProcessorServiceClient) ProcessCSVFile(ctx context.Context, in *ProcessCSVFileRequest, opts ...grpc.CallOption) (*ProcessCSVFileResponse, error) <span class="cov0" title="0">{
+        cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+        out := new(ProcessCSVFileResponse)
+        err := c.cc.Invoke(ctx, DataProcessorService_ProcessCSVFile_FullMethodName, in, out, cOpts...)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return out, nil</span>
+}
+
+func (c *dataProcessorServiceClient) ProcessCSVData(ctx context.Context, in *ProcessCSVDataRequest, opts ...grpc.CallOption) (*ProcessCSVDataResponse, error) <span class="cov0" title="0">{
+        cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+        out := new(ProcessCSVDataResponse)
+        err := c.cc.Invoke(ctx, DataProcessorService_ProcessCSVData_FullMethodName, in, out, cOpts...)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return out, nil</span>
+}
+
+func (c *dataProcessorServiceClient) ValidateCSVData(ctx context.Context, in *ValidateCSVDataRequest, opts ...grpc.CallOption) (*ValidateCSVDataResponse, error) <span class="cov0" title="0">{
+        cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+        out := new(ValidateCSVDataResponse)
+        err := c.cc.Invoke(ctx, DataProcessorService_ValidateCSVData_FullMethodName, in, out, cOpts...)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return out, nil</span>
+}
+
+func (c *dataProcessorServiceClient) HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error) <span class="cov0" title="0">{
+        cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+        out := new(HealthCheckResponse)
+        err := c.cc.Invoke(ctx, DataProcessorService_HealthCheck_FullMethodName, in, out, cOpts...)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return out, nil</span>
+}
+
+// DataProcessorServiceServer is the server API for DataProcessorService service.
+// All implementations must embed UnimplementedDataProcessorServiceServer
+// for forward compatibility.
+type DataProcessorServiceServer interface {
+        ProcessCSVFile(context.Context, *ProcessCSVFileRequest) (*ProcessCSVFileResponse, error)
+        ProcessCSVData(context.Context, *ProcessCSVDataRequest) (*ProcessCSVDataResponse, error)
+        ValidateCSVData(context.Context, *ValidateCSVDataRequest) (*ValidateCSVDataResponse, error)
+        HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error)
+        mustEmbedUnimplementedDataProcessorServiceServer()
+}
+
+// UnimplementedDataProcessorServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedDataProcessorServiceServer struct{}
+
+func (UnimplementedDataProcessorServiceServer) ProcessCSVFile(context.Context, *ProcessCSVFileRequest) (*ProcessCSVFileResponse, error) <span class="cov0" title="0">{
+        return nil, status.Errorf(codes.Unimplemented, "method ProcessCSVFile not implemented")
+}</span>
+func (UnimplementedDataProcessorServiceServer) ProcessCSVData(context.Context, *ProcessCSVDataRequest) (*ProcessCSVDataResponse, error) <span class="cov0" title="0">{
+        return nil, status.Errorf(codes.Unimplemented, "method ProcessCSVData not implemented")
+}</span>
+func (UnimplementedDataProcessorServiceServer) ValidateCSVData(context.Context, *ValidateCSVDataRequest) (*ValidateCSVDataResponse, error) <span class="cov0" title="0">{
+        return nil, status.Errorf(codes.Unimplemented, "method ValidateCSVData not implemented")
+}</span>
+func (UnimplementedDataProcessorServiceServer) HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error) <span class="cov0" title="0">{
+        return nil, status.Errorf(codes.Unimplemented, "method HealthCheck not implemented")
+}</span>
+func (UnimplementedDataProcessorServiceServer) mustEmbedUnimplementedDataProcessorServiceServer() {<span class="cov0" title="0">}</span>
+func (UnimplementedDataProcessorServiceServer) testEmbeddedByValue()                              {<span class="cov0" title="0">}</span>
+
+// UnsafeDataProcessorServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DataProcessorServiceServer will
+// result in compilation errors.
+type UnsafeDataProcessorServiceServer interface {
+        mustEmbedUnimplementedDataProcessorServiceServer()
+}
+
+func RegisterDataProcessorServiceServer(s grpc.ServiceRegistrar, srv DataProcessorServiceServer) <span class="cov0" title="0">{
+        // If the following call pancis, it indicates UnimplementedDataProcessorServiceServer was
+        // embedded by pointer and is nil.  This will cause panics if an
+        // unimplemented method is ever invoked, so we test this at initialization
+        // time to prevent it from happening at runtime later due to I/O.
+        if t, ok := srv.(interface{ testEmbeddedByValue() }); ok </span><span class="cov0" title="0">{
+                t.testEmbeddedByValue()
+        }</span>
+        <span class="cov0" title="0">s.RegisterService(&amp;DataProcessorService_ServiceDesc, srv)</span>
+}
+
+func _DataProcessorService_ProcessCSVFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) <span class="cov0" title="0">{
+        in := new(ProcessCSVFileRequest)
+        if err := dec(in); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if interceptor == nil </span><span class="cov0" title="0">{
+                return srv.(DataProcessorServiceServer).ProcessCSVFile(ctx, in)
+        }</span>
+        <span class="cov0" title="0">info := &amp;grpc.UnaryServerInfo{
+                Server:     srv,
+                FullMethod: DataProcessorService_ProcessCSVFile_FullMethodName,
+        }
+        handler := func(ctx context.Context, req interface{}) (interface{}, error) </span><span class="cov0" title="0">{
+                return srv.(DataProcessorServiceServer).ProcessCSVFile(ctx, req.(*ProcessCSVFileRequest))
+        }</span>
+        <span class="cov0" title="0">return interceptor(ctx, in, info, handler)</span>
+}
+
+func _DataProcessorService_ProcessCSVData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) <span class="cov0" title="0">{
+        in := new(ProcessCSVDataRequest)
+        if err := dec(in); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if interceptor == nil </span><span class="cov0" title="0">{
+                return srv.(DataProcessorServiceServer).ProcessCSVData(ctx, in)
+        }</span>
+        <span class="cov0" title="0">info := &amp;grpc.UnaryServerInfo{
+                Server:     srv,
+                FullMethod: DataProcessorService_ProcessCSVData_FullMethodName,
+        }
+        handler := func(ctx context.Context, req interface{}) (interface{}, error) </span><span class="cov0" title="0">{
+                return srv.(DataProcessorServiceServer).ProcessCSVData(ctx, req.(*ProcessCSVDataRequest))
+        }</span>
+        <span class="cov0" title="0">return interceptor(ctx, in, info, handler)</span>
+}
+
+func _DataProcessorService_ValidateCSVData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) <span class="cov0" title="0">{
+        in := new(ValidateCSVDataRequest)
+        if err := dec(in); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if interceptor == nil </span><span class="cov0" title="0">{
+                return srv.(DataProcessorServiceServer).ValidateCSVData(ctx, in)
+        }</span>
+        <span class="cov0" title="0">info := &amp;grpc.UnaryServerInfo{
+                Server:     srv,
+                FullMethod: DataProcessorService_ValidateCSVData_FullMethodName,
+        }
+        handler := func(ctx context.Context, req interface{}) (interface{}, error) </span><span class="cov0" title="0">{
+                return srv.(DataProcessorServiceServer).ValidateCSVData(ctx, req.(*ValidateCSVDataRequest))
+        }</span>
+        <span class="cov0" title="0">return interceptor(ctx, in, info, handler)</span>
+}
+
+func _DataProcessorService_HealthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) <span class="cov0" title="0">{
+        in := new(HealthCheckRequest)
+        if err := dec(in); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if interceptor == nil </span><span class="cov0" title="0">{
+                return srv.(DataProcessorServiceServer).HealthCheck(ctx, in)
+        }</span>
+        <span class="cov0" title="0">info := &amp;grpc.UnaryServerInfo{
+                Server:     srv,
+                FullMethod: DataProcessorService_HealthCheck_FullMethodName,
+        }
+        handler := func(ctx context.Context, req interface{}) (interface{}, error) </span><span class="cov0" title="0">{
+                return srv.(DataProcessorServiceServer).HealthCheck(ctx, req.(*HealthCheckRequest))
+        }</span>
+        <span class="cov0" title="0">return interceptor(ctx, in, info, handler)</span>
+}
+
+// DataProcessorService_ServiceDesc is the grpc.ServiceDesc for DataProcessorService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var DataProcessorService_ServiceDesc = grpc.ServiceDesc{
+        ServiceName: "etcdataprocessor.v1.DataProcessorService",
+        HandlerType: (*DataProcessorServiceServer)(nil),
+        Methods: []grpc.MethodDesc{
+                {
+                        MethodName: "ProcessCSVFile",
+                        Handler:    _DataProcessorService_ProcessCSVFile_Handler,
+                },
+                {
+                        MethodName: "ProcessCSVData",
+                        Handler:    _DataProcessorService_ProcessCSVData_Handler,
+                },
+                {
+                        MethodName: "ValidateCSVData",
+                        Handler:    _DataProcessorService_ValidateCSVData_Handler,
+                },
+                {
+                        MethodName: "HealthCheck",
+                        Handler:    _DataProcessorService_HealthCheck_Handler,
+                },
+        },
+        Streams:  []grpc.StreamDesc{},
+        Metadata: "src/proto/data_processor.proto",
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
